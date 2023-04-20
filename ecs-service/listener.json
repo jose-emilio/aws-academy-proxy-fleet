@@ -1,0 +1,6 @@
+[
+  {
+    "Type": "forward",
+    "TargetGroupArn": "<proxy-tg>"
+  }
+]

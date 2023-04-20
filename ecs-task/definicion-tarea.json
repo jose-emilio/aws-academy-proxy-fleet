@@ -1,0 +1,35 @@
+{
+    "containerDefinitions": [ 
+       { 
+          "essential": true,
+          "image": "<imagen>:latest",
+          "logConfiguration": { 
+             "logDriver": "awslogs",
+             "options": { 
+                "awslogs-group" : "/ecs/squid-task",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "ecs"
+             }
+          },
+          "name": "squid",
+          "portMappings": [ 
+             { 
+                "containerPort": 3128,
+                "hostPort": 3128,
+                "protocol": "tcp"
+             }
+          ]
+       }
+    ],
+    "cpu": "256",
+    "executionRoleArn": "<LabRole>",
+    "family": "proxy-web",
+    "memory": "512",
+    "networkMode": "awsvpc",
+    "runtimePlatform": {
+         "operatingSystemFamily": "LINUX"
+     },
+    "requiresCompatibilities": [ 
+        "FARGATE" 
+     ]
+ }

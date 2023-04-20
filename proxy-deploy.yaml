@@ -1,0 +1,349 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Plantilla que crea un servicio Proxy escalable, altamente disponible y seguro
+Parameters:
+  Prefijo:
+    Type: String
+    Default: "dev"
+  IdUltimaAMI:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2
+Resources:
+  VPCServicio:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      Parameters:
+        Nombre: "Servicio"
+        VPC: "10.0.0.0/16"
+        SubredesPublicas: "SI"
+        SubredesPrivadas: "SI"
+        SubredPublica1: "10.0.0.0/24"
+        SubredPublica2: "10.0.1.0/24"
+        SubredPrivada1: "10.0.2.0/24"
+        SubredPrivada2: "10.0.3.0/24"
+        NATGateways: "SI"
+        Bastion: "NO"
+      TemplateURL: "./vpc/vpc.yaml"
+      TimeoutInMinutes: 10
+  VPCCliente:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      Parameters:
+        Nombre: "Cliente"
+        VPC: "172.16.0.0/16"
+        SubredesPublicas: "NO"
+        SubredesPrivadas: "SI"
+        SubredPrivada1: "172.16.0.0/24"
+        SubredPrivada2: "172.16.1.0/24"
+        NATGateways: "NO"
+        Bastion: "NO"
+      TemplateURL: "./vpc/vpc.yaml"
+      TimeoutInMinutes: 10
+  Repositorio:
+    Type: AWS::ECR::Repository
+    Properties:
+      EncryptionConfiguration:
+        EncryptionType: "AES256"
+      RepositoryName: !Sub
+        - ${pre}-proxy-repo
+        - pre: !Ref Prefijo
+  nlb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - !GetAtt VPCServicio.Outputs.Privada1
+        - !GetAtt VPCServicio.Outputs.Privada2
+      Name: !Sub
+        - ${pre}-nlb
+        - pre: !Ref Prefijo
+      Scheme: "internal"
+      Type: "network"
+      LoadBalancerAttributes:
+        - Key: "load_balancing.cross_zone.enabled"
+          Value: "true"
+      Tags:
+        - Key: "Name"
+          Value: !Sub
+            - nlb-${nombreVPC}
+            - nombreVPC: !GetAtt VPCServicio.Outputs.VPC
+  tgProxy:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: "ip"
+      Protocol: "TCP"
+      Port: 3128
+      Name: !Sub
+        - ${pre}-proxy-tg
+        - pre: !Ref Prefijo
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      VpcId: !GetAtt VPCServicio.Outputs.VPC
+      HealthCheckIntervalSeconds: 15
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+  nlbListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref nlb
+      Port:  3128
+      Protocol: "TCP"
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref tgProxy
+  grupoSegBuilder:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !GetAtt VPCServicio.Outputs.VPC
+      GroupDescription: Grupo de seguridad para la instancia EC2 builder. No permite trafico de entrada, se debe administrar mediante AWS SSM Session Manager
+  grupoSegProxy:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !GetAtt VPCServicio.Outputs.VPC
+      GroupDescription: Grupo de seguridad para el servicio Proxy
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: "3128"
+          ToPort: "3128"
+          IpProtocol: "tcp"
+  proxyCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub
+        - ${pre}-proxy-Cluster
+        - pre: !Ref Prefijo
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+        - CapacityProvider: FARGATE_SPOT
+          Weight: 1
+  proxyLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+  proxyTask:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Essential: true
+          Image: !Sub 
+            - ${repo}:latest
+            - repo: !GetAtt Repositorio.RepositoryUri
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              "awslogs-group": !Ref proxyLogs
+              "awslogs-region": !Ref "AWS::Region"
+              "awslogs-stream-prefix": "ecs"
+          Name: "squid"
+          PortMappings:
+            - ContainerPort: 3128
+              HostPort: 3128
+              Protocol: "tcp"
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::Sub: 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      Family: !Sub
+        - ${repo}-proxy-task
+        - repo: !Ref Prefijo
+      Memory: "512"
+      NetworkMode: "awsvpc"
+      RuntimePlatform:
+        OperatingSystemFamily: "LINUX"
+        CpuArchitecture: "ARM64"
+      RequiresCompatibilities:
+        - "FARGATE"
+  proxyService:
+    Type: AWS::ECS::Service
+    DependsOn: nlbListener
+    Properties:
+      PlatformVersion: LATEST
+      LaunchType: FARGATE
+      Cluster: !GetAtt proxyCluster.Arn
+      TaskDefinition: !Ref proxyTask
+      DesiredCount: 4
+      LoadBalancers:
+        - ContainerName: "squid"
+          ContainerPort: 3128
+          TargetGroupArn: !Ref tgProxy
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref grupoSegProxy
+          Subnets:
+            - !GetAtt VPCServicio.Outputs.Privada1
+            - !GetAtt VPCServicio.Outputs.Privada2
+  proxyAutoScaling:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 10
+      MinCapacity: 2
+      ResourceId: !Sub
+        - service/${cluster}/${servicio}
+        - cluster: !Ref proxyCluster
+          servicio: !GetAtt proxyService.Name
+      RoleARN:
+        Fn::Sub: 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+  proxyAutoScalingPolitica:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn: proxyAutoScaling
+    Properties:
+      PolicyName: !Sub
+        - ${pre}-service-policy
+        - pre: !Ref Prefijo
+      PolicyType: TargetTrackingScaling
+      ResourceId: !Sub
+        - service/${cluster}/${servicio}
+        - cluster: !Ref proxyCluster
+          servicio: !GetAtt proxyService.Name
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 65
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization      
+  builder:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref IdUltimaAMI
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      InstanceType: t4g.micro
+      SecurityGroupIds:
+        - !Ref grupoSegBuilder
+      SubnetId: !GetAtt VPCServicio.Outputs.Privada1
+      IamInstanceProfile: LabInstanceProfile
+      UserData:
+        Fn::Base64: 
+          !Join
+            - ""
+            - - "#!/bin/bash\n"
+              - "yum update -y\n"
+              - "amazon-linux-extras install docker -y\n"
+              - "systemctl enable docker\n"
+              - "systemctl start docker\n"
+              - "wget https://aai-joseemilio.s3.amazonaws.com/AWS-Academy/practicas/proxy/Dockerfile -P /root\n"
+              - "wget https://aai-joseemilio.s3.amazonaws.com/AWS-Academy/practicas/proxy/entrypoint.sh -P /root\n"
+              - "wget https://aai-joseemilio.s3.amazonaws.com/AWS-Academy/practicas/proxy/squid.conf -P /root\n"
+              - "docker login -u AWS -p $(aws ecr get-login-password --region "
+              - !Ref "AWS::Region"
+              - ") "
+              - !GetAtt Repositorio.RepositoryUri
+              - "\n" 
+              - "docker build -t proxy:latest /root/.\n"
+              - "docker tag proxy:latest "
+              - !GetAtt Repositorio.RepositoryUri
+              - ":latest\n"
+              - "docker push "
+              - !GetAtt Repositorio.RepositoryUri
+              - ":latest\n"
+      Tags:
+        - Key: "Name"
+          Value: !Sub
+            - proxy-builder-${nombreVPC}
+            - nombreVPC: !GetAtt VPCServicio.Outputs.VPC
+  servicioPuntoEnlace:
+    Type: AWS::EC2::VPCEndpointService
+    DependsOn: proxyService
+    Properties:
+      AcceptanceRequired: false
+      NetworkLoadBalancerArns:
+        - !Ref nlb
+  grupoSegPuntoEnlace:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !GetAtt VPCCliente.Outputs.VPC
+      GroupDescription: Grupo de seguridad para el punto de enlace
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: "3128"
+          ToPort: "3128"
+          IpProtocol: "tcp"
+  PuntoEnlace:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !GetAtt VPCCliente.Outputs.VPC
+      VpcEndpointType: Interface
+      SecurityGroupIds:
+        - !Ref grupoSegPuntoEnlace
+      ServiceName: !Sub
+        - com.amazonaws.vpce.${AWS::Region}.${sep}
+        - sep: !Ref servicioPuntoEnlace
+      SubnetIds:
+        - !GetAtt VPCCliente.Outputs.Privada1
+        - !GetAtt VPCCliente.Outputs.Privada2
+  grupoSegCliente:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !GetAtt VPCCliente.Outputs.VPC
+      GroupDescription: Grupo de seguridad para el punto de enlace
+      SecurityGroupEgress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: "3128"
+          ToPort: "3128"
+          IpProtocol: "tcp"
+  cliente:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref IdUltimaAMI
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      InstanceType: t4g.micro
+      SecurityGroupIds:
+        - !Ref grupoSegCliente
+      SubnetId: !GetAtt VPCCliente.Outputs.Privada1
+      IamInstanceProfile: LabInstanceProfile
+      KeyName: proxy-key
+      UserData:
+        Fn::Base64: 
+          !Join
+            - ""
+            - - "#!/bin/bash\n"
+              - "export http_proxy=http://"
+              - !Select ['1', !Split [':', !Select ['0', !GetAtt PuntoEnlace.DnsEntries]]]
+              - ":3128\n"
+              - "export https_proxy=http://"
+              - !Select ['1', !Split [':', !Select ['0', !GetAtt PuntoEnlace.DnsEntries]]]
+              - ":3128\n"
+              - "echo \"http_proxy=http://"
+              - !Select ['1', !Split [':', !Select ['0', !GetAtt PuntoEnlace.DnsEntries]]]
+              - ":3128\" >> /etc/environment\n"
+              - "echo \"https_proxy=http://"
+              - !Select ['1', !Split [':', !Select ['0', !GetAtt PuntoEnlace.DnsEntries]]]
+              - ":3128\" >> /etc/environment\n"
+              - "mkdir -p /etc/systemd/system/amazon-ssm-agent.service.d\n"
+              - "cat <<EOF >/etc/systemd/system/amazon-ssm-agent.service.d/override.conf\n"
+              - "[Service]\n"
+              - "Environment=\"http_proxy=http://"
+              - !Select ['1', !Split [':', !Select ['0', !GetAtt PuntoEnlace.DnsEntries]]]
+              - ":3128\"\n"
+              - "Environment=\"https_proxy=http://"
+              - !Select ['1', !Split [':', !Select ['0', !GetAtt PuntoEnlace.DnsEntries]]]
+              - ":3128\"\n"
+              - "Environment=\"no_proxy=169.254.169.254\"\n"
+              - "EOF\n"
+              - "sudo systemctl daemon-reload\n"
+              - "systemctl restart amazon-ssm-agent\n"
+              - "yum install -y\n"
+              - "yum install lynx -y\n"
+              
+      Tags:
+        - Key: "Name"
+          Value: !Sub
+            - proxy-client-${nombreVPC}
+            - nombreVPC: !GetAtt VPCCliente.Outputs.VPC
+Outputs:
+  ProxyNLB:
+    Description: Punto de entrada al servicio Proxy
+    Value: !GetAtt nlb.DNSName
+  ProxyServicioPuntoEnlace:
+    Description: Servicio de punto de enlace del NLB
+    Value: !Select ['1', !Split [':', !Select ['0', !GetAtt PuntoEnlace.DnsEntries]]]

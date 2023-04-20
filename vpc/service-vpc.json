@@ -1,0 +1,38 @@
+[
+    {
+         "ParameterKey": "Nombre",
+         "ParameterValue": "Service"
+     },
+     {
+         "ParameterKey": "VPC",
+         "ParameterValue": "10.0.0.0/16"
+     },
+     {
+        "ParameterKey": "SubredPublica1",
+        "ParameterValue": "10.0.0.0/24"
+    },
+    {
+        "ParameterKey": "SubredPublica2",
+        "ParameterValue": "10.0.1.0/24"
+    },
+    {
+        "ParameterKey": "SubredPrivada1",
+        "ParameterValue": "10.0.2.0/24"
+    },
+    {
+        "ParameterKey": "SubredPrivada2",
+        "ParameterValue": "10.0.3.0/24"
+    },
+    {
+        "ParameterKey": "InternetGateway",
+        "ParameterValue": "SI"
+    },
+    {
+        "ParameterKey": "NATGateways",
+        "ParameterValue": "SI"
+    },
+    {
+        "ParameterKey": "Bastion",
+        "ParameterValue": "NO"
+    }
+ ]

@@ -1,2 +1,2 @@
-# aws-academy-proxyfleet
-Despliegue de una flota de servidores proxy escalable y balanceada alojada en AWS Fargate
+# aws-academy-proxy-fleet
+Deployment of a scalable Proxy Web fleet with AWS Academy Learner Labs
