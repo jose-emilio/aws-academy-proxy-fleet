@@ -11,7 +11,6 @@ Metadata:
           - VPC
           - SubredesPublicas
           - SubredesPrivadas
-          - InternetGateway
           - NATGateways          
       - 
         Label:
@@ -47,19 +46,15 @@ Metadata:
         default: "Subred Publica 2"
       SubredPrivada2:
         default: "Subred Privada 2"
-      InternetGateway:
-        default: "Crear Internet Gateway"
       NATGateways:
         default: "Crear NAT Gateways?"
       Bastion:
         default: "Crear Bastion?"
-Mappings:
-  AMI:
-    us-east-1:
-      "HVM64": "ami-081dc0707789c2daf"
-    us-west-2:
-      "HVM64": "ami-0efabcf945ffd8831"
 Parameters:
+  AmiID:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: ID de la AMI
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2'
   Nombre:
     Type: String
   VPC:
@@ -335,11 +330,33 @@ Resources:
     Properties:
       VpcId: !Ref miVPC
       GroupDescription: Grupo de seguridad para la instancia EC2 bastion. No permite trafico de entrada, se debe administrar mediante AWS SSM Session Manager
+  RolEC2:
+    Type: AWS::IAM::Role
+    Condition: CrearBastion
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  PerfilInstanciaEC2:
+    Type: AWS::IAM::InstanceProfile
+    Condition: CrearBastion
+    Properties:
+      Roles:
+        - !Ref RolEC2
+      Path: "/"
   bastion:
     Type: AWS::EC2::Instance
     Condition: CrearBastion
     Properties:
-      ImageId: !FindInMap [AMI, !Ref "AWS::Region", HVM64]
+      ImageId: !Ref AmiID
       AvailabilityZone:
         Fn::Select:
           - 0
@@ -348,7 +365,7 @@ Resources:
       SecurityGroupIds:
         - !Ref grupoSegBastion
       SubnetId: !Ref publica1
-      IamInstanceProfile: LabInstanceProfile
+      IamInstanceProfile: !Ref PerfilInstanciaEC2
       UserData:
         Fn::Base64:
           !Sub |
@@ -372,10 +389,22 @@ Outputs:
     Value: !GetAtt publica2.SubnetId
     Condition: CrearSubredesPublicas
   Privada1:
-    Description: ID de la subred privada App1
+    Description: ID de la subred privada 1
     Value: !GetAtt privada1.SubnetId
     Condition: CrearSubredesPrivadas
   Privada2:
-    Description: ID de la subred privada App2
+    Description: ID de la subred privada 2
     Value: !GetAtt privada2.SubnetId
+    Condition: CrearSubredesPrivadas
+  TablaRutasPublica:
+    Description: ID de la tabla de rutas publica
+    Value: !Ref rutasPublicas
+    Condition: CrearSubredesPublicas
+  TablaRutasPrivada1:
+    Description: ID de la tabla de rutas privada 1
+    Value: !Ref rutasPrivadas1
+    Condition: CrearSubredesPrivadas
+  TablaRutasPrivada2:
+    Description: ID de la tabla de rutas privada 2
+    Value: !Ref rutasPrivadas2
     Condition: CrearSubredesPrivadas
