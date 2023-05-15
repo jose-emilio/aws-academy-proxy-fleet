@@ -9,21 +9,10 @@ Metadata:
         Parameters:
           - Nombre
           - VPC
+          - AZ
           - SubredesPublicas
           - SubredesPrivadas
           - NATGateways          
-      - 
-        Label:
-          default: Subredes Publicas
-        Parameters:
-          - SubredPublica1
-          - SubredPublica2
-      - 
-        Label:
-          default: Subredes Privadas
-        Parameters:
-          - SubredPrivada1
-          - SubredPrivada2
       -  
         Label:
           default: "Configuracion del bastion"
@@ -34,18 +23,12 @@ Metadata:
         default: "Nombre de la VPC"
       VPC:
         default: "CIDR VPC"
+      AZ:
+        default: "Numero de zonas de disponibilidad"
       SubredesPublicas: 
         default: "Crear Subredes publicas?"
       SubredesPrivadas: 
         default: "Crear Subredes privadas?"
-      SubredPublica1:
-        default: "Subred Publica 1"
-      SubredPrivada1:
-        default: "Subred Privada 1"
-      SubredPublica2:
-        default: "Subred Publica 2"
-      SubredPrivada2:
-        default: "Subred Privada 2"
       NATGateways:
         default: "Crear NAT Gateways?"
       Bastion:
@@ -62,26 +45,13 @@ Parameters:
     Description: Bloque CIDR asignado a la VPC
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: 10.2.0.0/16
-  SubredPublica1:
-    Type: String
-    Description: Bloque CIDR asignado a la subred publica de la AZ1. El bloque CIDR debe ser un subconjunto del bloque CIDR de la VPC
-    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.2.0.0/24
-  SubredPrivada1:
-    Type: String
-    Description: Bloque CIDR asignado a la subred privada de la AZ1 donde se creara la capa de aplicacion. El bloque CIDR debe ser un subconjunto del bloque CIDR de la VPC
-    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.2.1.0/24
-  SubredPublica2:
-    Type: String
-    Description: Bloque CIDR asignado a la subred publica de la AZ2. El bloque CIDR debe ser un subconjunto del bloque CIDR de la VPC
-    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.2.2.0/24
-  SubredPrivada2:
-    Type: String
-    Description: Bloque CIDR asignado a la subred privada de la AZ2 donde se creara la capa de aplicacion. El bloque CIDR debe ser un subconjunto del bloque CIDR de la VPC
-    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.2.3.0/24
+  AZ:
+    Type: Number
+    Description: Numero de zonas de disponibilidad que abarcara la VPC
+    AllowedValues:
+      - 1
+      - 2
+    Default: 2
   SubredesPublicas:
     Type: String
     Description: Indica si deben crearse o no las subredes publicas
@@ -111,10 +81,38 @@ Parameters:
       - "NO"
     Default: "SI"
 Conditions:
-  CrearSubredesPublicas: !Equals [!Ref "SubredesPublicas","SI"]
-  CrearSubredesPrivadas: !Equals [!Ref "SubredesPrivadas","SI"]
-  CrearNATGateways: !And [!Equals [!Ref "NATGateways","SI"],!Equals [!Ref "SubredesPublicas","SI"],!Equals [!Ref "SubredesPrivadas","SI"]]
-  CrearBastion: !And [!Equals [!Ref "SubredesPublicas","SI"],!Equals [!Ref "Bastion","SI"]]
+  CrearSubredesPublicas: !Equals 
+    - !Ref SubredesPublicas
+    - SI
+  CrearSubredesPrivadas: !Equals 
+    - !Ref SubredesPrivadas
+    - SI
+  CrearNATGateways: !And 
+    - !Equals 
+      - !Ref NATGateways
+      - SI
+    - !Condition CrearSubredesPublicas
+    - !Condition CrearSubredesPrivadas
+  CrearBastion: !And 
+    - !Condition CrearSubredesPublicas
+    - !Equals 
+      - !Ref Bastion
+      - SI
+  CrearSubredesPublicas2AZ: !And
+    - !Equals
+      - !Ref AZ
+      - 2
+    - !Condition CrearSubredesPublicas
+  CrearSubredesPrivadas2AZ: !And
+    - !Equals
+      - !Ref AZ
+      - 2
+    - !Condition CrearSubredesPrivadas
+  CrearNATGateways2AZ: !And
+    - !Equals
+      - !Ref AZ
+      - 2
+    - !Condition CrearNATGateways
 Resources:
   miVPC:
     Type: AWS::EC2::VPC
@@ -151,7 +149,7 @@ Resources:
         Fn::Select:
           - 0
           - Fn::GetAZs: ""
-      CidrBlock: !Ref SubredPublica1
+      CidrBlock: !Select [0, !Cidr [!GetAtt  miVPC.CidrBlock,4,8]]
       MapPublicIpOnLaunch: True
       Tags:
         - Key: "Name"
@@ -167,7 +165,7 @@ Resources:
         Fn::Select:
           - 0
           - Fn::GetAZs: ""
-      CidrBlock: !Ref SubredPrivada1
+      CidrBlock: !Select [1, !Cidr [!GetAtt miVPC.CidrBlock,4,8]]
       Tags:
         - Key: "Name"
           Value: !Sub
@@ -175,14 +173,14 @@ Resources:
             - nombreVPC: !Ref Nombre
   publica2:
     Type: AWS::EC2::Subnet
-    Condition: CrearSubredesPublicas
+    Condition: CrearSubredesPublicas2AZ
     Properties:
       VpcId: !Ref miVPC
       AvailabilityZone:
         Fn::Select:
           - 1
           - Fn::GetAZs: ""
-      CidrBlock: !Ref SubredPublica2
+      CidrBlock: !Select [2, !Cidr [!GetAtt miVPC.CidrBlock,4,8]]
       MapPublicIpOnLaunch: True
       Tags:
         - Key: "Name"
@@ -191,14 +189,14 @@ Resources:
             - nombreVPC: !Ref Nombre
   privada2:
     Type: AWS::EC2::Subnet
-    Condition: CrearSubredesPrivadas
+    Condition: CrearSubredesPrivadas2AZ
     Properties:
       VpcId: !Ref miVPC
       AvailabilityZone:
         Fn::Select:
           - 1
           - Fn::GetAZs: ""
-      CidrBlock: !Ref SubredPrivada2
+      CidrBlock: !Select [3, !Cidr [!GetAtt miVPC.CidrBlock,4,8]]
       Tags:
         - Key: "Name"
           Value: !Sub
@@ -216,7 +214,7 @@ Resources:
             - nombreVPC: !Ref Nombre
   eip2:
     Type: AWS::EC2::EIP
-    Condition: CrearNATGateways
+    Condition: CrearNATGateways2AZ
     Properties:
       Domain: vpc
       Tags:
@@ -237,7 +235,7 @@ Resources:
             - nombreVPC: !Ref Nombre
   NAT2:
     Type: AWS::EC2::NatGateway
-    Condition: CrearNATGateways
+    Condition: CrearNATGateways2AZ
     Properties:
       AllocationId: !GetAtt eip2.AllocationId
       SubnetId: !Ref publica2
@@ -259,7 +257,6 @@ Resources:
   rutaIGW:
     Type: AWS::EC2::Route
     Condition: CrearSubredesPublicas
-    DependsOn: miIGW
     Properties:
       RouteTableId: !Ref rutasPublicas
       GatewayId: !Ref miIGW
@@ -276,7 +273,7 @@ Resources:
             - nombreVPC: !Ref Nombre
   rutasPrivadas2:
     Type: AWS::EC2::RouteTable
-    Condition: CrearSubredesPrivadas
+    Condition: CrearSubredesPrivadas2AZ
     Properties:
       VpcId: !Ref miVPC
       Tags: 
@@ -287,15 +284,13 @@ Resources:
   rutaNAT1:
     Type: AWS::EC2::Route
     Condition: CrearNATGateways
-    DependsOn: NAT1
     Properties:
       RouteTableId: !Ref rutasPrivadas1
       NatGatewayId: !Ref NAT1
       DestinationCidrBlock: '0.0.0.0/0'
   rutaNAT2:
     Type: AWS::EC2::Route
-    Condition: CrearNATGateways
-    DependsOn: NAT2
+    Condition: CrearNATGateways2AZ
     Properties:
       RouteTableId: !Ref rutasPrivadas2
       NatGatewayId: !Ref NAT2
@@ -308,7 +303,7 @@ Resources:
       SubnetId: !Ref publica1
   asociacionSubredPub2:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CrearSubredesPublicas
+    Condition: CrearSubredesPublicas2AZ
     Properties: 
       RouteTableId: !Ref rutasPublicas
       SubnetId: !Ref publica2
@@ -320,7 +315,7 @@ Resources:
       SubnetId: !Ref privada1
   asociacionSubredPriv2:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CrearSubredesPrivadas
+    Condition: CrearSubredesPrivadas2AZ
     Properties: 
       RouteTableId: !Ref rutasPrivadas2
       SubnetId: !Ref privada2
@@ -387,7 +382,7 @@ Outputs:
   Publica2:
     Description: ID de la subred publica 2
     Value: !GetAtt publica2.SubnetId
-    Condition: CrearSubredesPublicas
+    Condition: CrearSubredesPublicas2AZ
   Privada1:
     Description: ID de la subred privada 1
     Value: !GetAtt privada1.SubnetId
@@ -395,7 +390,7 @@ Outputs:
   Privada2:
     Description: ID de la subred privada 2
     Value: !GetAtt privada2.SubnetId
-    Condition: CrearSubredesPrivadas
+    Condition: CrearSubredesPrivadas2AZ
   TablaRutasPublica:
     Description: ID de la tabla de rutas publica
     Value: !Ref rutasPublicas
@@ -407,4 +402,4 @@ Outputs:
   TablaRutasPrivada2:
     Description: ID de la tabla de rutas privada 2
     Value: !Ref rutasPrivadas2
-    Condition: CrearSubredesPrivadas
+    Condition: CrearSubredesPrivadas2AZ
