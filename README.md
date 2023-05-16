@@ -23,7 +23,33 @@ El objetivo de este repositorio es proporcionar indicaciones para diseñar y des
 
 ![Arquitectura](images/arch.png)
 
-## Instrucciones
+La arquitectura anterior puede desplegarse de forma automatizada con la plantilla de AWS CloudFormation `proxy-deploy.yaml` o manualmente. A continuación, se dan instrucciones para ambas formas.
+
+## Instrucciones (AWS CloudFormation)
+
+**Nota importante**: Si es la primera vez que se despliega un clúster de Amazon ECS, es posible que no esté creado el <em>service-linked role</em> de ECS y el despliegue falle. Es por ello que se recomienda visitar la consola de Amazon ECS previamente para generar automáticamente el rol.
+
+1. Previamente, se establece la región donde se aprovisionará la infraestructura. En los AWS Academy Learner Labs sólo puede ser us-east-1 o us-west-2:
+
+		REGION=us-east-1
+
+2. (Opcional) Si no se dispone de un bucket de S3 para almacenar los artefactos de AWS CloudFormation, hay que crearlo. Si ya de dispone de él, se omite este paso:
+
+		aws s3 mb s3://<nombre-bucket> --region $REGION
+
+		BUCKET=<nombre-bucket>
+
+3. Se empaqueta la plantilla de AWS CloudFormation:
+
+		aws cloudformation package --template-file proxy-deploy.yaml --s3-bucket $BUCKET --output-template-file proxy-deploy-transformed.yaml --region $REGION
+
+4. Se despliega la infraestructura a partir de la plantilla transformada. El despliegue durará varios minutos:
+
+		aws cloudformation deploy --template-file proxy-deploy-transformed.yaml --stack-name proxy-fleet --region $REGION
+
+5. Por último y para testear el correcto funcionamiento de la solución, se lanza una conexión mediante AWS SSM Session Manager contra la instancia cliente
+
+## Instrucciones (Manual)
 
 1. Previamente, se establece la región donde se aprovisionará la infraestructura. En los AWS Academy Learner Labs sólo puede ser us-east-1 o us-west-2:
 
@@ -33,6 +59,9 @@ El objetivo de este repositorio es proporcionar indicaciones para diseñar y des
 
 		aws cloudformation deploy --template-file vpc/vpc.yaml --stack-name service --parameter-overrides file://vpc/service-vpc.json --region $REGION
 		 
+3. A continuación se despliega la infraestructura de red de la VPC cliente:
+
+		aws cloudformation deploy --template-file vpc/vpc.yaml --stack-name service --parameter-overrides file://vpc/client-vpc.json --region $REGION
 
 
 

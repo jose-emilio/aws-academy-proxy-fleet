@@ -224,9 +224,9 @@ Resources:
               - "amazon-linux-extras install docker -y\n"
               - "systemctl enable docker\n"
               - "systemctl start docker\n"
-              - "wget https://aai-joseemilio.s3.amazonaws.com/AWS-Academy/practicas/proxy/Dockerfile -P /root\n"
-              - "wget https://aai-joseemilio.s3.amazonaws.com/AWS-Academy/practicas/proxy/entrypoint.sh -P /root\n"
-              - "wget https://aai-joseemilio.s3.amazonaws.com/AWS-Academy/practicas/proxy/squid.conf -P /root\n"
+              - "wget https://aws-academy-practicas.s3.amazonaws.com/proxy/Dockerfile -P /root\n"
+              - "wget https://aws-academy-practicas.s3.amazonaws.com/proxy/entrypoint.sh -P /root\n"
+              - "wget https://aws-academy-practicas.s3.amazonaws.com/proxy/squid.conf -P /root\n"
               - "docker login -u AWS -p $(aws ecr get-login-password --region "
               - !Ref "AWS::Region"
               - ") "
@@ -273,7 +273,6 @@ Resources:
         - sep: !Ref servicioPuntoEnlace
       SubnetIds:
         - !GetAtt VPCCliente.Outputs.Privada1
-        - !GetAtt VPCCliente.Outputs.Privada2
   grupoSegCliente:
     Type: AWS::EC2::SecurityGroup
     Properties:
