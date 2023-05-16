@@ -1,9 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Plantilla que crea un servicio Proxy escalable, altamente disponible y seguro
 Parameters:
-  Prefijo:
-    Type: String
-    Default: "dev"
   IdUltimaAMI:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2
@@ -36,21 +33,16 @@ Resources:
       TimeoutInMinutes: 10
   Repositorio:
     Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
     Properties:
       EncryptionConfiguration:
         EncryptionType: "AES256"
-      RepositoryName: !Sub
-        - ${pre}-proxy-repo
-        - pre: !Ref Prefijo
   nlb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Subnets:
         - !GetAtt VPCServicio.Outputs.Privada1
         - !GetAtt VPCServicio.Outputs.Privada2
-      Name: !Sub
-        - ${pre}-nlb
-        - pre: !Ref Prefijo
       Scheme: "internal"
       Type: "network"
       LoadBalancerAttributes:
@@ -67,9 +59,6 @@ Resources:
       TargetType: "ip"
       Protocol: "TCP"
       Port: 3128
-      Name: !Sub
-        - ${pre}-proxy-tg
-        - pre: !Ref Prefijo
       HealthyThresholdCount: 2
       UnhealthyThresholdCount: 2
       VpcId: !GetAtt VPCServicio.Outputs.VPC
@@ -104,9 +93,6 @@ Resources:
   proxyCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Sub
-        - ${pre}-proxy-Cluster
-        - pre: !Ref Prefijo
       CapacityProviders:
         - FARGATE
         - FARGATE_SPOT
@@ -141,9 +127,6 @@ Resources:
       Cpu: "256"
       ExecutionRoleArn:
         Fn::Sub: 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
-      Family: !Sub
-        - ${repo}-proxy-task
-        - repo: !Ref Prefijo
       Memory: "512"
       NetworkMode: "awsvpc"
       RuntimePlatform:
@@ -185,12 +168,10 @@ Resources:
       ScalableDimension: ecs:service:DesiredCount
       ServiceNamespace: ecs
   proxyAutoScalingPolitica:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy     
     DependsOn: proxyAutoScaling
     Properties:
-      PolicyName: !Sub
-        - ${pre}-service-policy
-        - pre: !Ref Prefijo
+      PolicyName: PoliticaEscaladoProxy 
       PolicyType: TargetTrackingScaling
       ResourceId: !Sub
         - service/${cluster}/${servicio}
@@ -296,7 +277,6 @@ Resources:
         - !Ref grupoSegCliente
       SubnetId: !GetAtt VPCCliente.Outputs.Privada1
       IamInstanceProfile: LabInstanceProfile
-      KeyName: proxy-key
       UserData:
         Fn::Base64: 
           !Join
@@ -328,8 +308,7 @@ Resources:
               - "sudo systemctl daemon-reload\n"
               - "systemctl restart amazon-ssm-agent\n"
               - "yum install -y\n"
-              - "yum install lynx -y\n"
-              
+              - "yum install lynx -y\n"              
       Tags:
         - Key: "Name"
           Value: !Sub
@@ -342,3 +321,6 @@ Outputs:
   ProxyServicioPuntoEnlace:
     Description: Servicio de punto de enlace del NLB
     Value: !Select ['1', !Split [':', !Select ['0', !GetAtt PuntoEnlace.DnsEntries]]]
+  IdCliente:
+    Description: ID de la instancia cliente HTTP
+    Value: !Ref cliente
