@@ -4,6 +4,11 @@ Los servidores Proxy web permiten que los clientes de una red puedan navegar por
 
 El objetivo de este repositorio es proporcionar indicaciones para diseñar y desplegar la infraestructura necesaria para un clúster de servidores proxy balanceados y escalable, atendiendo a las mejores prácticas de seguridad y fiabilidad.
 
+## **Requerimientos**
+
+* Disponer de acceso a un sandbox en un AWS Academy Learner Lab
+* Disponer de un entorno configurado con AWS CLI y el motor de contenerización Docker
+
 ## Servicios utilizados
 
 * **Amazon ECS**, para crear un servicio definido mediante una tarea de AWS Fargate. Cada tarea ejecutará un contenedor Docker personalizado con un servicio Squid (Proxy web)
@@ -18,6 +23,9 @@ El objetivo de este repositorio es proporcionar indicaciones para diseñar y des
 
 ![Arquitectura](images/arch.png)
 
+## Instrucciones
+
+1. 
 
 
 
