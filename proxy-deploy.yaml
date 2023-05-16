@@ -16,10 +16,7 @@ Resources:
         VPC: "10.0.0.0/16"
         SubredesPublicas: "SI"
         SubredesPrivadas: "SI"
-        SubredPublica1: "10.0.0.0/24"
-        SubredPublica2: "10.0.1.0/24"
-        SubredPrivada1: "10.0.2.0/24"
-        SubredPrivada2: "10.0.3.0/24"
+        AZ: 2
         NATGateways: "SI"
         Bastion: "NO"
       TemplateURL: "./vpc/vpc.yaml"
@@ -32,8 +29,7 @@ Resources:
         VPC: "172.16.0.0/16"
         SubredesPublicas: "NO"
         SubredesPrivadas: "SI"
-        SubredPrivada1: "172.16.0.0/24"
-        SubredPrivada2: "172.16.1.0/24"
+        AZ: 1
         NATGateways: "NO"
         Bastion: "NO"
       TemplateURL: "./vpc/vpc.yaml"
