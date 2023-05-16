@@ -25,7 +25,14 @@ El objetivo de este repositorio es proporcionar indicaciones para diseñar y des
 
 ## Instrucciones
 
-1. 
+1. Previamente, se establece la región donde se aprovisionará la infraestructura. En los AWS Academy Learner Labs sólo puede ser us-east-1 o us-west-2:
+
+		REGION=us-east-1
+
+2. Para crear la infraestructura de las VPCs se utilizará una plantilla de AWS CloudFormation. Tanto la VPC de servicio como la VPC de cliente vienen parametrizadas en dos archivos JSON. Para lanzar la VPC de servicio se ejecutará:
+
+		aws cloudformation deploy --template-file vpc/vpc.yaml --stack-name service --parameter-overrides file://vpc/service-vpc.json --region $REGION
+		 
 
 
 
