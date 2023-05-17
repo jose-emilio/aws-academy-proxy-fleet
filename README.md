@@ -7,7 +7,7 @@ El objetivo de este repositorio es proporcionar indicaciones para diseñar y des
 ## **Requerimientos**
 
 * Disponer de acceso a un sandbox en un AWS Academy Learner Lab
-* Disponer de un entorno Linux configurado con AWS CLI y el motor de contenerización Docker
+* Disponer de un entorno Linux configurado con AWS CLI y, en caso de despliegue manual, el motor de contenerización Docker
 
 ## **Servicios utilizados**
 
