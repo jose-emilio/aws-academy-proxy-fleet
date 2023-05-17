@@ -77,8 +77,6 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 
 		docker build -t proxy-squid:latest squid/.
 
-	**Nota importante**: La construcción de la imagen Docker debe hacerse <u>necesariamente</u> desde una máquina con arquitectura x86_64 ya que Amazon ECS no soporta contenedores creados bajo la arquitectura ARM64 con un tipo de lanzamiento respaldado por AWS Fargate (sólo se admite arquitectura ARM64 con lanzamientos respaldados por Amazon EC2)
-
 5. La imagen se almacenará en un repositorio de Amazon ECR. Se crea con la siguiente orden:
 
 		repo=$(aws ecr create-repository --repository-name proxy-squid --region $REGION --query repository.repositoryUri --output text)
@@ -102,6 +100,12 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 		sed -i 's|<imagen>|'$repo'|g' ./ecs-task/definicion-tarea.json
 
 		sed -i 's|<LabRole>|'$LabRole'|g' ./ecs-task/definicion-tarea.json
+
+	Por otra parte, también hay que indicar la arquitectura de la máquina desde la que se crea la imagen de Docker, siendo los posibles valores `X86_64` y `ARM64`. Hay que tener en cuenta que ciertas regiones de AWS no tiene soporte (aún) para el despliegue de tareas en AWS Fargate sobre arquitectura ARM (https://docs.aws.amazon.com/AmazonECS/latest/userguide/ecs-arm64.html). Para ello ejecutamos las instrucciones sigiuentes, indicando en la variable de entorno `arch` la arquitectura apropiada:
+
+		arch=X86_64
+
+		sed -i 's|<arch>|'$arch'|g' ./ecs-task/definicion-tarea.json
 
 10. Se registra la definición de la tarea en Amazon ECS:
 
