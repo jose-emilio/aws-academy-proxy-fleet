@@ -2,7 +2,7 @@
 
 Los servidores Proxy web permiten que los clientes de una red puedan navegar por Internet, mediante los protocolos HTTP y HTTPS de forma segura, permitiendo el enmascaramiento de las direcciones IP de los clientes, el filtrado de solicitudes y el cacheo de respuestas.
 
-El objetivo de este repositorio es proporcionar indicaciones para diseñar y desplegar la infraestructura necesaria para un clúster de servidores proxy balanceados y escalable, atendiendo a las mejores prácticas de seguridad y fiabilidad.
+El objetivo de este repositorio es proporcionar indicaciones para diseñar y desplegar la infraestructura necesaria para un servicio proxy balanceados y escalable, atendiendo a las mejores prácticas de seguridad y fiabilidad.
 
 ## **Requerimientos**
 
