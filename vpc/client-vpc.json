@@ -22,5 +22,9 @@
     {
         "ParameterKey": "Bastion",
         "ParameterValue": "NO"
+    },
+    {
+        "ParameterKey": "SubredesPublicas",
+        "ParameterValue": "NO"
     }
  ]
