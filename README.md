@@ -73,7 +73,7 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 
 		aws cloudformation deploy --template-file vpc/vpc.yaml --stack-name client --parameter-overrides file://vpc/client-vpc.json --region $REGION
 
-4. Para crear la imagen Docker del contenedor que ejecutará la tarea de Proxy Web, se ejecuta la instrucción:
+4. Para crear la imagen Docker del contenedor que ejecutará la tarea de Proxy Web, se ejecuta la instrucción. Es posible personalizar la configuración del proxy web previamente, personalizando el archivo `squid/squid.conf`:
 
 		docker build -t proxy-squid:latest squid/.
 
@@ -83,7 +83,7 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 
 6. Se procede ahora a la autenticación sobre el registro de Amazon ECR:
 
-		docker login -u AWS -p $(aws ecr get-login-password --region us-east-1) $repo
+		docker login -u AWS -p $(aws ecr get-login-password --region $REGION) $repo
 
 7. Se etiqueta la imagen creada localmente y se envía a Amazon ECR:
 
@@ -100,6 +100,8 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 		sed -i 's|<imagen>|'$repo'|g' ./ecs-task/definicion-tarea.json
 
 		sed -i 's|<LabRole>|'$LabRole'|g' ./ecs-task/definicion-tarea.json
+
+		sed -i 's|<region>|'$REGION'|g' ./ecs-task/definicion-tarea.json
 
 	Por otra parte, también hay que indicar la arquitectura de la máquina desde la que se crea la imagen de Docker, siendo los posibles valores `X86_64` y `ARM64`. Hay que tener en cuenta que ciertas regiones de AWS no tiene soporte (aún) para el despliegue de tareas en AWS Fargate sobre arquitectura ARM (https://docs.aws.amazon.com/AmazonECS/latest/userguide/ecs-arm64.html). Para ello ejecutamos las instrucciones sigiuentes, indicando en la variable de entorno `arch` la arquitectura apropiada:
 
@@ -222,7 +224,7 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 
 32. Se lanza la instancia EC2 cliente para que ejecute el script anterior al inicio:
 
-		cliente=$(aws ec2 run-instances --image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2 --instance-type t4g.small --security-group-ids $clientsg --subnet-id $privadaCliente1 --iam-instance-profile Arn=$profile,Name=LabInstanceProfile --user-data file://client/userdata.sh --query Instances[].InstanceId --output text --region $REGION)
+		cliente=$(aws ec2 run-instances --image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2 --instance-type t4g.small --security-group-ids $clientsg --subnet-id $privadaCliente1 --iam-instance-profile Name=LabInstanceProfile --user-data file://client/userdata.sh --query Instances[].InstanceId --output text --region $REGION)
 
 33. Tras un breve período de tiempo (3-4 minutos), la instancia EC2 se habrá registrado con el servicio AWS SSM mediante el agente de SSM incluido en la instancia. Transcurrido este tiempo, se lanza la conexión (es necesario tener instalado el plugin de AWS SSM Session Manager para AWS CLI https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) y se intenta probar la navegación web con `lynx`:
 

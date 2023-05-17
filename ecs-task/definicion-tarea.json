@@ -7,7 +7,7 @@
              "logDriver": "awslogs",
              "options": { 
                 "awslogs-group" : "/ecs/squid-task",
-                "awslogs-region": "us-east-1",
+                "awslogs-region": "<region>",
                 "awslogs-stream-prefix": "ecs"
              }
           },
@@ -27,7 +27,7 @@
     "memory": "512",
     "networkMode": "awsvpc",
     "runtimePlatform": {
-         "CpuArchitecture": "<arch>",
+         "cpuArchitecture": "<arch>",
          "operatingSystemFamily": "LINUX"
      },
     "requiresCompatibilities": [ 
