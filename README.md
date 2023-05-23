@@ -1,5 +1,6 @@
 # **Despliegue de un servicio Proxy Web escalable y altamente disponible mediante AWS Academy Learner Labs**
 
+## **Objetivo**
 Los servidores Proxy web permiten que los clientes de una red puedan navegar por Internet, mediante los protocolos HTTP y HTTPS de forma segura, permitiendo el enmascaramiento de las direcciones IP de los clientes, el filtrado de solicitudes y el cacheo de respuestas.
 
 El objetivo de este repositorio es proporcionar indicaciones para diseñar y desplegar la infraestructura necesaria para un servicio proxy seguro, altamente disponible y escalable, atendiendo a las buenas prácticas de seguridad y fiabilidad.
@@ -8,6 +9,13 @@ El objetivo de este repositorio es proporcionar indicaciones para diseñar y des
 
 * Disponer de acceso a un sandbox en un AWS Academy Learner Lab
 * Disponer de un entorno Linux configurado con AWS CLI y, en caso de despliegue manual, el motor de contenerización Docker
+
+## **Arquitectura propuesta**
+<p align="center">
+  <img src="images/arch.png">
+</p>
+
+La arquitectura anterior puede desplegarse de forma automatizada con la plantilla de AWS CloudFormation `proxy-deploy.yaml` o manualmente. A continuación, se dan instrucciones para ambas formas.
 
 ## **Servicios utilizados**
 
@@ -19,12 +27,6 @@ El objetivo de este repositorio es proporcionar indicaciones para diseñar y des
 * Dos **Gateway NAT** para permitir el acceso a Internet de los contenedores Docker que implementan el servicio Proxy Web
 * **AWS Systems Manager Session Manager** que se utilizará para el acceso seguro y privado a la instancia EC2 (cliente web)
 * **AWS Auto Scaling** para configurar el escalado automático del servicio Proxy contenerizado
-
-## **Arquitectura propuesta**
-
-![Arquitectura](images/arch.png)
-
-La arquitectura anterior puede desplegarse de forma automatizada con la plantilla de AWS CloudFormation `proxy-deploy.yaml` o manualmente. A continuación, se dan instrucciones para ambas formas.
 
 ## **Instrucciones (AWS CloudFormation)**
 
