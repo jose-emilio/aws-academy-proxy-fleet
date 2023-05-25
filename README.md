@@ -36,7 +36,7 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 
 		REGION=us-east-1
 
-2. (Opcional) Si no se dispone de un bucket de S3 para almacenar los artefactos de AWS CloudFormation, hay que crearlo. Si ya de dispone de él, se omite este paso:
+2. (Opcional) Si no se dispone de un bucket de S3 para almacenar los artefactos de AWS CloudFormation, hay que crearlo. Si ya se dispone de él, se omite este paso:
 
 		BUCKET=<nombre-bucket>
 		
