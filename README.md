@@ -38,9 +38,9 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 
 2. (Opcional) Si no se dispone de un bucket de S3 para almacenar los artefactos de AWS CloudFormation, hay que crearlo. Si ya de dispone de él, se omite este paso:
 
-		aws s3 mb s3://<nombre-bucket> --region $REGION
-
 		BUCKET=<nombre-bucket>
+		
+		aws s3 mb s3://$BUCKET --region $REGION
 
 3. Se empaqueta la plantilla de AWS CloudFormation:
 
@@ -59,7 +59,6 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 		aws ssm start-session --target $ID --region $REGION
 
 		lynx https://aws.amazon.com
-
 
 ## **Instrucciones (Manual)**
 
