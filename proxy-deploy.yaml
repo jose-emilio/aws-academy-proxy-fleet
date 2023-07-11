@@ -4,7 +4,21 @@ Parameters:
   IdUltimaAMI:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2
+  AWSAcademy:
+    Type: String
+    Description: Indica si se esta utilizando o AWS Academy Learner Labs para desplegar la pila o una cuenta normal de AWS
+    AllowedValues:
+      - "SI"
+      - "NO"
+    Default: "SI"
+Conditions:
+  CuentaNormal: !Equals [!Ref AWSAcademy,"NO"]
 Resources:
+  Roles:
+    Type: AWS::CloudFormation::Stack
+    Condition: CuentaNormal
+    Properties:
+      TemplateURL: "./iam/iam.yaml"
   VPCServicio:
     Type: AWS::CloudFormation::Stack
     Properties: 
