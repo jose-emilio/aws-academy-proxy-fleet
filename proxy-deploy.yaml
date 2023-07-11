@@ -16,6 +16,7 @@ Resources:
         AZ: 2
         NATGateways: "SI"
         Bastion: "NO"
+        LearnerLab: "SI"
       TemplateURL: "./vpc/vpc.yaml"
       TimeoutInMinutes: 10
   VPCCliente:
@@ -29,6 +30,7 @@ Resources:
         AZ: 1
         NATGateways: "NO"
         Bastion: "NO"
+        LearnerLab: "SI"
       TemplateURL: "./vpc/vpc.yaml"
       TimeoutInMinutes: 10
   Repositorio:

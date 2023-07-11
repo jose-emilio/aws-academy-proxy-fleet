@@ -18,6 +18,11 @@ Metadata:
           default: "Configuracion del bastion"
         Parameters:
           - Bastion
+      - 
+        Label:
+          default: "Entorno"
+        Parameters:
+          - LearnerLab
     ParameterLabels:
       Nombre:
         default: "Nombre de la VPC"
@@ -33,6 +38,8 @@ Metadata:
         default: "Crear NAT Gateways?"
       Bastion:
         default: "Crear Bastion?"
+      LearnerLab:
+        default: "Se esta desplegando la pila en un AWS Academy Learner Lab?"
 Parameters:
   AmiID:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
@@ -75,29 +82,36 @@ Parameters:
     Default: "SI"
   Bastion:
     Type: String
-    Description: Indica si debe crears una instancia EC2 bastion
+    Description: Indica si debe crearse una instancia EC2 bastion
     AllowedValues:
       - "SI"
       - "NO"
     Default: "SI"
+  LearnerLab:
+    Type: String
+    Description: Indica si la plantilla se esta desplegando o no en un AWS Academy Learner Labs
+    AllowedValues:
+      - "SI"
+      - "NO"
+    Default: "NO"
 Conditions:
   CrearSubredesPublicas: !Equals 
     - !Ref SubredesPublicas
-    - SI
+    - "SI"
   CrearSubredesPrivadas: !Equals 
     - !Ref SubredesPrivadas
-    - SI
+    - "SI"
   CrearNATGateways: !And 
     - !Equals 
       - !Ref NATGateways
-      - SI
+      - "SI"
     - !Condition CrearSubredesPublicas
     - !Condition CrearSubredesPrivadas
   CrearBastion: !And 
     - !Condition CrearSubredesPublicas
     - !Equals 
       - !Ref Bastion
-      - SI
+      - "SI"
   CrearSubredesPublicas2AZ: !And
     - !Equals
       - !Ref AZ
@@ -113,6 +127,11 @@ Conditions:
       - !Ref AZ
       - 2
     - !Condition CrearNATGateways
+  CrearRolIAM: !And
+    - !Equals
+      - !Ref LearnerLab
+      - "NO"
+    - !Condition CrearBastion
 Resources:
   miVPC:
     Type: AWS::EC2::VPC
@@ -327,7 +346,7 @@ Resources:
       GroupDescription: Grupo de seguridad para la instancia EC2 bastion. No permite trafico de entrada, se debe administrar mediante AWS SSM Session Manager
   RolEC2:
     Type: AWS::IAM::Role
-    Condition: CrearBastion
+    Condition: CrearRolIAM
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -342,7 +361,7 @@ Resources:
         - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   PerfilInstanciaEC2:
     Type: AWS::IAM::InstanceProfile
-    Condition: CrearBastion
+    Condition: CrearRolIAM
     Properties:
       Roles:
         - !Ref RolEC2
@@ -360,7 +379,7 @@ Resources:
       SecurityGroupIds:
         - !Ref grupoSegBastion
       SubnetId: !Ref publica1
-      IamInstanceProfile: !Ref PerfilInstanciaEC2
+      IamInstanceProfile: !If [CrearRolIAM, !Ref PerfilInstanciaEC2, LabInstanceProfile]
       UserData:
         Fn::Base64:
           !Sub |
