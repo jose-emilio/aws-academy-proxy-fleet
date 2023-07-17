@@ -7,7 +7,7 @@ El objetivo de este repositorio es proporcionar indicaciones para diseñar y des
 
 ## **Requerimientos**
 
-* Disponer de acceso a un sandbox en un AWS Academy Learner Lab
+* Disponer de acceso a un sandbox en un AWS Academy Learner Lab o una cuenta real de AWS
 * Disponer de un entorno Linux configurado con AWS CLI y, en caso de despliegue manual, el motor de contenerización Docker
 
 ## **Arquitectura propuesta**
@@ -48,7 +48,13 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 
 4. Se despliega la infraestructura a partir de la plantilla transformada. El despliegue durará varios minutos:
 
+	Para desplegar en un <em>sandbox</em> de AWS Academy:
+
 		aws cloudformation deploy --template-file proxy-deploy-transformed.yaml --stack-name proxy-fleet --region $REGION
+
+	Para desplegar en una cuenta real de AWS:
+
+		aws cloudformation deploy --template-file proxy-deploy-transformed.yaml --stack-name proxy-fleet --region $REGION --parameter-overrides AWSAcademy="NO" --capabilities CAPABILITY_IAM
 
 5. Para testear el correcto funcionamiento de la solución. Para ello, previamente se obtiene el ID de la instancia cliente HTTP:
 
@@ -60,7 +66,7 @@ La arquitectura anterior puede desplegarse de forma automatizada con la plantill
 
 		lynx https://aws.amazon.com
 
-## **Instrucciones (Manual)**
+## **Instrucciones (Manual, sólo AWS Academy Learner Lab)**
 
 1. Previamente, se establece la región donde se aprovisionará la infraestructura. En los AWS Academy Learner Labs sólo puede ser `us-east-1` o `us-west-2`:
 

@@ -10,18 +10,158 @@ Resources:
           - Effect: "Allow"
             Principal:
               Service:
-                - "ec2.amazonaws.com"
-            Action: "sts:AssumeRole"
-      Path: "/"
+                - 'ec2.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Path: /proxy-fleet/
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
   PerfilInstanciaEC2SSM:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref RolEC2
-      Path: "/"
+        - !Ref RolEC2SSM
+      Path: /proxy-fleet/
+  RolEC2Builder:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - 'ec2.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Path: /proxy-fleet/
+  PoliticaEC2Builder1:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'ecr:PutLifecyclePolicy'
+              - 'ecr:PutImageTagMutability'
+              - 'ecr:StartImageScan'
+              - 'ecr:CreateRepository'
+              - 'ecr:PutImageScanningConfiguration'
+              - 'ecr:UploadLayerPart'
+              - 'ecr:BatchDeleteImage'
+              - 'ecr:DeleteLifecyclePolicy'
+              - 'ecr:DeleteRepository'
+              - 'ecr:PutImage'
+              - 'ecr:CompleteLayerUpload'
+              - 'ecr:StartLifecyclePolicyPreview'
+              - 'ecr:InitiateLayerUpload'
+              - 'ecr:DeleteRepositoryPolicy'
+              - 'ecr:BatchCheckLayerAvailability'
+            Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/*'
+      PolicyName: PoliticaBuilder1
+      Roles: 
+        - !Ref RolEC2Builder
+  PoliticaEC2Builder2:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'ecr:GetAuthorizationToken'
+            Resource: '*'
+      PolicyName: PoliticaBuilder2
+      Roles: 
+        - !Ref RolEC2Builder
+  PerfilInstanciaEC2Builder:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref RolEC2Builder
+      Path: /proxy-fleet/
+  RolEjecucionTarea:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: 
+              Service:
+                - 'ecs-tasks.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      Path: /proxy-fleet/
+  PoliticaTarea:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:BatchCheckLayerAvailability'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Resource: '*'
+      PolicyName: PoliticaECSTarea
+      Roles: 
+        - !Ref RolEjecucionTarea
+  RolAutoEscaladoServicio:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal: 
+                Service:
+                  - 'ecs.application-autoscaling.amazonaws.com'
+              Action:
+                - 'sts:AssumeRole'
+        Path: /proxy-fleet/
+  PoliticaAutoEscaladoServicio:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'application-autoscaling:*'
+              - 'ecs:DescribeServices'
+              - 'ecs:UpdateService'
+              - 'cloudwatch:DescribeAlarms'
+              - 'cloudwatch:PutMetricAlarm'
+              - 'cloudwatch:DeleteAlarms'
+              - 'cloudwatch:DescribeAlarmHistory'
+              - 'cloudwatch:DescribeAlarmsForMetric'
+              - 'cloudwatch:GetMetricStatistics'
+              - 'cloudwatch:ListMetrics'
+              - 'cloudwatch:DisableAlarmActions'
+              - 'cloudwatch:EnableAlarmActions'
+              - 'iam:CreateServiceLinkedRole'
+              - 'sns:CreateTopic'
+              - 'sns:Subscribe'
+              - 'sns:Get*'
+              - 'sns:List*'
+            Resource: '*'
+      PolicyName: PoliticaAutoEscaladoServicio
+      Roles:
+        - !Ref RolAutoEscaladoServicio
 Outputs:
   PerfilInstanciaSSM:
     Description: Perfil de la instancia con permisos para registrarse con AWS SSM
     Value: !Ref PerfilInstanciaEC2SSM
+  PerfilInstanciaBuilder:
+    Description: Perfil de la instancia con permisos para actualizar repositorios en Amazon ECR
+    Value: !Ref PerfilInstanciaEC2Builder
+  RolEjecTarea:
+    Description: Rol de ejecucion de la tarea de Amazon ECS
+    Value: !GetAtt RolEjecucionTarea.Arn
+  RolAutoEscaladoServicio:
+    Description: Rol para el autoescalado del servicio de Amazon ECS
+    Value: !GetAtt RolAutoEscaladoServicio.Arn

@@ -141,8 +141,7 @@ Resources:
               HostPort: 3128
               Protocol: "tcp"
       Cpu: "256"
-      ExecutionRoleArn:
-        Fn::Sub: 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      ExecutionRoleArn: !If [CuentaNormal, !GetAtt Roles.Outputs.RolEjecTarea, !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole']
       Memory: "512"
       NetworkMode: "awsvpc"
       RuntimePlatform:
@@ -179,8 +178,7 @@ Resources:
         - service/${cluster}/${servicio}
         - cluster: !Ref proxyCluster
           servicio: !GetAtt proxyService.Name
-      RoleARN:
-        Fn::Sub: 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      RoleARN: !If [CuentaNormal, !GetAtt Roles.Outputs.RolAutoEscaladoServicio, !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole']
       ScalableDimension: ecs:service:DesiredCount
       ServiceNamespace: ecs
   proxyAutoScalingPolitica:
@@ -211,7 +209,7 @@ Resources:
       SecurityGroupIds:
         - !Ref grupoSegBuilder
       SubnetId: !GetAtt VPCServicio.Outputs.Privada1
-      IamInstanceProfile: LabInstanceProfile
+      IamInstanceProfile: !If [CuentaNormal, !GetAtt Roles.Outputs.PerfilInstanciaBuilder, LabInstanceProfile]
       UserData:
         Fn::Base64: 
           !Join
@@ -292,7 +290,7 @@ Resources:
       SecurityGroupIds:
         - !Ref grupoSegCliente
       SubnetId: !GetAtt VPCCliente.Outputs.Privada1
-      IamInstanceProfile: LabInstanceProfile
+      IamInstanceProfile: !If [CuentaNormal, !GetAtt Roles.Outputs.PerfilInstanciaSSM, LabInstanceProfile]
       UserData:
         Fn::Base64: 
           !Join
